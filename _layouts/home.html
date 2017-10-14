@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+{% include head.html %}
+<body>
+
+    {% include nav.html %}
+
+    <div class="jumbotron">
+      <div class="container">
+          <h1 class="display-3">{{ site.title }}</h1>
+          <p>{{ site.description }}</p>
+      </div>
+    </div>
+
+    <div class="container main">
+        <div class="starter-template">
+            {{ content }}
+        </div>
+    </div>
+    <!-- /.container -->
+
+    {% include footer.html %}
+</body>
+</html>
+
+
+

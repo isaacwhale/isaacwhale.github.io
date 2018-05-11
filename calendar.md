@@ -2,7 +2,7 @@
 layout: default
 ---
 
-## LWC Documentation
+## LWC Documentation(s)
 
 This document covers three sections: templates, css, and calendar settings.  The templates section includes a description of available templates, and an annotated list of the variables that can be used in each.  Also included in the templates is documentation on View Helpers, which are functions that can be used within templates to transform data.
 

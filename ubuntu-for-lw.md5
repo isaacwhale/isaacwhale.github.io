@@ -1,0 +1,228 @@
+### Install Apache, PHP, postfix
+
+```
+sudo apt-get install -y php7.2 php7.2-apcu php7.2-tidy php7.2-mysql php7.2-gd php7.2-curl php7.2-ldap php7.2-fpm php7.2-soap libssh2-1-dev php-ssh2 libapache2-mod-auth-mellon postfix
+```
+
+### Make sure ntpd is running with `ntpq -p`, if not install with:
+
+```
+sudo apt-get install ntp
+```
+
+Installing this way on Ubuntu adds a script to /etc/init.d that starts the service on boot.
+
+### Set the timezone
+
+This will be reset for each new client, so it doesn't really matter what you choose (America/New_York, America/Los_Angeles, etc.)
+
+```
+sudo dpkg-reconfigure tzdata
+```
+
+### Enable automatic security updates
+
+```
+sudo apt-get install unattended-upgrades
+sudo dpkg-reconfigure unattended-upgrades
+```
+
+### OPTIONALLY Install MySQL
+
+Skip if using a remote database
+
+```
+sudo apt-get install mysql-server
+sudo mysql_secure_installation
+sudo update-rc.d mysql defaults
+```
+
+If using MySQL >= 5.7 it is necessary to disable the ONLY_FULL_GROUP_BY setting that is enabled by default
+
+```
+mysql> SET GLOBAL sql_mode=(SELECT REPLACE(@@sql_mode,'ONLY_FULL_GROUP_BY',''));
+```
+
+Install the MySQL client only if you skipped the server installation above.
+
+```
+sudo apt-get install mysql-client
+```
+
+### Ensure swapfile exists **EC2 micro instance**
+
+Check for swapfile with `swapon -s`
+
+To add swapfile run:
+
+```
+dd if=/dev/zero of=/swapfile bs=1M count=1024
+mkswap /swapfile
+swapon /swapfile
+chmod 0600 /swapfile
+```
+
+Add `/swapfile swap swap defaults 0 0` to /etc/fstab
+
+
+### Install development software
+
+```
+apt-get install -y git
+apt-get install -y cmake
+apt-get install -y build-essential
+apt-get install -y python-dev
+```
+
+#### Install node and required node packages
+
+[Installing Nodejs for LiveWhale](https://github.com/whitewhale/LiveWhale/wiki/Nodejs-for-LiveWhale)
+
+If this is an AWS cloud prototype server, be sure to also install pip and then the AWS tools through pip:
+
+```
+apt-get install -y python-pip python-dev build-essential
+pip install awscli
+```
+
+### Configure apache
+
+Enable required modules
+
+```
+a2enmod rewrite
+a2enmod expires
+a2enmod headers
+```
+
+Create an apache system account:
+
+`useradd -r apache`
+
+Then make the following change in /etc/apache2/envvars
+
+```
+export APACHE_RUN_USER=apache
+export APACHE_RUN_GROUP=apache
+```
+
+Create `conf-available/expires.conf` with the following:
+
+```
+<IfModule mod_expires.c>
+   ExpiresActive on
+   ExpiresByType image/jpeg A2592000
+   ExpiresByType image/gif A2592000
+   ExpiresByType image/png A2592000
+   ExpiresByType image/x-icon A2592000
+   ExpiresByType application/x-shockwave-flash A2592000
+   ExpiresByType text/html A10800
+   ExpiresDefault A604800
+   Header merge Cache-Control "public"
+</IfModule>
+```
+
+Enable it with `a2enconf expires`
+
+### Configure PHP
+
+Enable FPM
+
+```
+sudo a2enmod proxy_fcgi
+sudo a2enconf php7.2-fpm
+sudo a2dismod php7.2
+sudo a2dismod mpm_prefork 
+sudo a2enmod mpm_event 
+sudo service php7.2-fpm restart
+```
+
+Create `/etc/apache/conf-available/http2.conf` with the following
+
+```
+<IfModule http2_module>
+    ProtocolsHonorOrder On
+    # for a https server
+    Protocols h2 http/1.1
+    # for a http server
+    Protocols h2c http/1.1
+</IfModule>
+```
+
+Change the php listen user and group in `/etc/php/7.2/fpm/pool.d/www.conf`
+
+```
+owner = apache
+group = apache
+listen.owner = apache
+listen.group = apache
+```
+
+Enable it with `a2enconf http2`
+
+Make the following changes to `/etc/php/7.2/fpm/php.ini`
+
+```
+date.timezone = [your timezone]
+upload_max_filesize = 10M
+post_max_size = 11M
+upload_max_filesize = 2000
+opcache.enable=1
+opcache.revalidate_freq=2
+```
+
+Add the folowing apc config options to /etc/php/7.2/mods-available/apcu.ini
+
+```
+apc.shm_size=256M
+apc.ttl=7200
+```
+
+Restart the PHP FPM service.
+
+```
+service php7.2-fpm restart
+```
+
+### Configure MySQL
+
+Create a file at `/etc/mysql/conf.d/livewhale.cnf` with the following:
+
+```
+[mysqld]
+ft_min_word_len = 3
+
+innodb_buffer_pool_size = 256M
+innodb_flush_method = O_DIRECT
+max_allowed_packet = 10M
+
+### Configure Apache
+
+```
+cd /etc/apache2/mods-enabled
+a2enmod rewrite.load
+a2enmod headers.load
+a2enmod expires.load
+service apache2 restart
+```
+
+## Install mcrypt if using SAML based SSO
+
+Mcrypt is not available as a standard module in PHP 7.x and so the following is required to install it for SAML based SSO from OneLogin.  The PHP team has deemed mcrypt abandonware.  One would think that OneLogin would release a new version that doesn't require mcrypt soon.
+
+```sh
+# install php mcrypt
+apt-get install php7.2-dev
+apt-get install php-pear
+sudo apt-get -y install gcc make autoconf libc-dev pkg-config
+sudo apt-get -y install libmcrypt-dev
+sudo pecl install mcrypt-1.0.1
+# add mcrypt to php config
+sudo bash -c "echo extension=/usr/lib/php/20170718/mcrypt.so > /etc/php/7.2/mods-available/mcrypt.ini"
+phpenmod mcrypt
+```
+
+### Run LiveWhale Readiness Test
+
+- copy the LRT from dev.livewhale.net and configure it with the SFTP/MySQL info
+- this will indicate any additional php.ini changes needed, etc.

@@ -206,22 +206,6 @@ a2enmod expires.load
 service apache2 restart
 ```
 
-## Install mcrypt if using SAML based SSO
-
-Mcrypt is not available as a standard module in PHP 7.x and so the following is required to install it for SAML based SSO from OneLogin.  The PHP team has deemed mcrypt abandonware.  One would think that OneLogin would release a new version that doesn't require mcrypt soon.
-
-```sh
-# install php mcrypt
-apt-get install php7.2-dev
-apt-get install php-pear
-sudo apt-get -y install gcc make autoconf libc-dev pkg-config
-sudo apt-get -y install libmcrypt-dev
-sudo pecl install mcrypt-1.0.1
-# add mcrypt to php config
-sudo bash -c "echo extension=/usr/lib/php/20170718/mcrypt.so > /etc/php/7.2/mods-available/mcrypt.ini"
-phpenmod mcrypt
-```
-
 ### Run LiveWhale Readiness Test
 
 - copy the LRT from dev.livewhale.net and configure it with the SFTP/MySQL info
